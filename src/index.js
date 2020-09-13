@@ -6,10 +6,12 @@ const User = require("./models/user");
 const Meeting = require("./models/meeting");
 const userRouter = require("./routers/user.js");
 const meetingRouter = require("./routers/meeting");
+const auth = require("./middleware/auth");
+const jwt = require("jsonwebtoken");
 
 app.use(cors());
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT
 
 //middleware
 // app.use((req, res, next)=>{
@@ -24,8 +26,31 @@ const PORT = process.env.PORT;
 // app.use((req, res, next)=>{
 //     res.status(503).send("Maintenence Mode")
 // })
-
+app.use(express.urlencoded({extended:false}))
 app.use(express.json());
+app.set('view engine', 'ejs');
+
+app.get("/", async(req, res)=>{
+    res.render("login")
+})
+
+app.get("/private" , async(req, res)=>{
+    const authorizationHeader = req.get('Authorization');
+    
+    if(authorizationHeader){
+        const token = authorizationHeader.replace('Bearer ' , '');
+        const decoded = await jwt.verify(token , process.env.JWT_SECRET);
+        const user = await User.findOne({_id: decoded._id , 'tokens.token' : token});
+        if(!user){
+            res.redirect("/");
+        }
+        res.render('private', {user:user});
+    }
+    else{
+        res.json({error:"Not Authorized"});
+    }
+
+});
 app.use(userRouter);
 app.use(meetingRouter);
 
