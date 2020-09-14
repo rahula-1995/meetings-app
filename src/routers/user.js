@@ -5,8 +5,15 @@ const auth = require("../middleware/auth");
 
 //Get Profile
 router.get("/users/me" ,auth,  async (req, res)=>{
-    res.send(req.user.getPublicProfile());
+    res.send({user:req.user.getPublicProfile()});
 })
+
+//Get email
+router.get("/emails" , auth, async(req, res)=>{
+    const emails  = await User.find({}).select({email:1});
+    res.send(emails);
+});
+
 
 //Signup
 router.post("/users", async (req, res)=>{
@@ -80,6 +87,7 @@ router.patch("/users/me" ,auth, async(req, res)=>{
         updates.forEach((update)=>{
             user[update] = req.body[update]; 
         });
+        
         await user.save();
 
         //const user = await User.findByIdAndUpdate(_id , req.body , {new: true , runValidators : true});

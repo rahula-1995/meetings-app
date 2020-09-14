@@ -82,3 +82,12 @@ app.listen(PORT, ()=>{
 
 // myFunction()
 
+// const main= async ()=>{
+//     const meeting = await Meeting.findById("5f5e60862af394995d124512")
+//     await meeting.populate('creator').execPopulate()
+//     console.log(meeting);
+//     const user = await User.findById("5f5ded2d926ba58d75390f08");
+//     await user.populate('meetings').execPopulate()
+//     console.log(user.meetings);
+// }
+// main()

@@ -7,8 +7,22 @@ router.get("/meetings" ,auth,  async (req, res)=>{
 
     try{
        const userId = req.user._id;
-       const meetings = await Meeting.find({});
+       const meetings = await Meeting.find({emails:req.user.email});
        res.send(meetings);
+    }catch(error){
+        res.statusCode = 500;
+        res.send(error.message);
+    }
+});
+
+router.get("/meetings/search" , auth, async(req, res)=>{
+    const date = req.body.date;
+    const searchTerm  = req.body.search;
+    console.log(date, searchTerm);
+    
+    try{
+        const meetings =await Meeting.find({description:{$regex:searchTerm||'', $options:'i'}, dateOfMeeting:date });
+        res.send(meetings);
     }catch(error){
         res.statusCode = 500;
         res.send(error.message);
@@ -29,13 +43,55 @@ router.get("/meetings/:id",auth ,async (req, res)=>{
     }
 }); 
 
+
+
 router.post("/meetings" ,auth, async (req, res)=>{
     const meeting = new Meeting({...req.body, creator:req.user._id});
+    console.log(req.body);
+    console.log(meeting);
     try{
        await meeting.save();
        res.send(meeting);
     }catch(error){
-        res.statusCode = 400 ;
+        console.log("here");
+        res.statusCode = 400;
+        res.send(error.message);
+    }
+});
+
+router.patch("/meetings/removeUser/:id",auth ,async(req, res)=>{
+    const removeEmail = req.body.email;
+    console.log(removeEmail);
+    try{
+        const meeting = await Meeting.findOne({_id:req.params.id});
+        if(!meeting){
+            return res.status(404).send();
+        }
+        const newMeetingArray  = meeting.emails.filter(email=>email!==removeEmail)
+        meeting.emails = [];
+        newMeetingArray.forEach(email=>{
+            meeting.emails.push(email);
+        });
+        await meeting.save();
+        res.json(meeting)
+    }catch(error){
+        res.statusCode = 400;
+        res.send(error.message);
+    }
+});
+
+router.patch("/meetings/addUser/:id", auth, async(req, res)=>{
+    const addEmail = req.body.email;
+    try{
+        const meeting = await Meeting.findOne({_id:req.params.id});
+        if(!meeting){
+            return res.status(404).send();
+        }
+        meeting.emails.push(addEmail);
+        await meeting.save();
+        res.json(meeting);
+    }catch(error){
+        res.statusCode = 400;
         res.send(error.message);
     }
 })
@@ -60,8 +116,15 @@ router.patch("/meetings/:id",auth, async (req, res)=>{
             return res.status(404).send();
         }
         updates.forEach((update)=>{
-            meeting[update] = req.body[update]
+            if(update!=='emails'){
+                meeting[update] = req.body[update]
+            }
         })
+        if(updates.indexOf('emails')!==-1){
+            req.body.emails.forEach(email=>{
+                meeting.emails.push(email);
+            })
+        }
         await meeting.save();
         res.json(meeting)
     }catch(error){
@@ -83,3 +146,5 @@ router.delete("/meetings/:id",auth, async(req, res)=>{
     }
 });
 module.exports = router;
+
+
