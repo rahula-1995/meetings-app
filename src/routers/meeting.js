@@ -2,12 +2,13 @@ const express = require("express");
 const router = new express.Router();
 const Meeting = require("../models/meeting");
 const auth = require("../middleware/auth");
+const moment = require("moment");
 
 router.get("/meetings" ,auth,  async (req, res)=>{
 
     try{
        const userId = req.user._id;
-       const meetings = await Meeting.find({emails:req.user.email});
+       const meetings = await Meeting.find({emails:req.user.email, creator:userId});
        res.send(meetings);
     }catch(error){
         res.statusCode = 500;
@@ -16,13 +17,30 @@ router.get("/meetings" ,auth,  async (req, res)=>{
 });
 
 router.get("/meetings/search" , auth, async(req, res)=>{
-    const date = req.body.date;
-    const searchTerm  = req.body.search;
-    console.log(date, searchTerm);
+    const date = req.query.date;
+    const searchTerm  = req.query.desc;
+    console.log(req.query.date, searchTerm);
     
     try{
-        const meetings =await Meeting.find({description:{$regex:searchTerm||'', $options:'i'}, dateOfMeeting:date });
-        res.send(meetings);
+        if(date==="All"){
+            const meetings =await Meeting.find({description:{$regex:searchTerm||'', $options:'i'},emails:req.user.email});
+            res.send(meetings);
+        }else if(date==="Today"){
+            const today = moment().format('DD/MM/YYYY');
+            const meetings =await Meeting.find({description:{$regex:searchTerm||'', $options:'i'}, dateOfMeeting:today,emails:req.user.email});
+            res.send(meetings);
+        }else if(date==="Past"){
+            const today = moment().format('DD/MM/YYYY');
+            const meetings =await Meeting.find({description:{$regex:searchTerm||'', $options:'i'}, dateOfMeeting:{$lt:today},emails:req.user.email});
+            res.send(meetings);
+        }else if(date=="Upcoming"){
+            const today = moment().format('DD/MM/YYYY');
+            const meetings =await Meeting.find({description:{$regex:searchTerm||'', $options:'i'}, dateOfMeeting:{$gt:today},emails:req.user.email});
+            res.send(meetings);
+        }else{
+            const meetings =await Meeting.find({description:{$regex:searchTerm||'', $options:'i'}, dateOfMeeting:req.query.date,emails:req.user.email});
+            res.send(meetings);
+        }
     }catch(error){
         res.statusCode = 500;
         res.send(error.message);
@@ -50,6 +68,7 @@ router.post("/meetings" ,auth, async (req, res)=>{
     console.log(req.body);
     console.log(meeting);
     try{
+       meeting.emails.push(req.user.email);
        await meeting.save();
        res.send(meeting);
     }catch(error){
@@ -60,18 +79,23 @@ router.post("/meetings" ,auth, async (req, res)=>{
 });
 
 router.patch("/meetings/removeUser/:id",auth ,async(req, res)=>{
-    const removeEmail = req.body.email;
+    const removeEmail = req.user.email;
     console.log(removeEmail);
-    try{
-        const meeting = await Meeting.findOne({_id:req.params.id});
+    console.log(req.params);
+    
+    try{    
+        
+        const meeting = await Meeting.findById(req.params.id);
+        
         if(!meeting){
             return res.status(404).send();
         }
-        const newMeetingArray  = meeting.emails.filter(email=>email!==removeEmail)
+        const newMeetingArray  = meeting.emails.filter(email=>email!==removeEmail && email!==null)
         meeting.emails = [];
         newMeetingArray.forEach(email=>{
             meeting.emails.push(email);
         });
+        console.log(newMeetingArray);
         await meeting.save();
         res.json(meeting)
     }catch(error){
@@ -80,14 +104,17 @@ router.patch("/meetings/removeUser/:id",auth ,async(req, res)=>{
     }
 });
 
-router.patch("/meetings/addUser/:id", auth, async(req, res)=>{
-    const addEmail = req.body.email;
+router.patch("/meetings/addUser/:id/:email", auth, async(req, res)=>{
+    const addEmail = req.params.email;
+    console.log(addEmail);
     try{
         const meeting = await Meeting.findOne({_id:req.params.id});
         if(!meeting){
             return res.status(404).send();
         }
-        meeting.emails.push(addEmail);
+        if(meeting.emails.indexOf(addEmail)===-1 && addEmail!==undefined){
+            meeting.emails.push(addEmail);
+        }
         await meeting.save();
         res.json(meeting);
     }catch(error){
