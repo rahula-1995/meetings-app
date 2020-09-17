@@ -4,6 +4,7 @@ const Meeting = require("../models/meeting");
 const auth = require("../middleware/auth");
 const moment = require("moment");
 
+//Get Meetings
 router.get("/meetings" ,auth,  async (req, res)=>{
 
     try{
@@ -16,6 +17,8 @@ router.get("/meetings" ,auth,  async (req, res)=>{
     }
 });
 
+
+//Search For Meetings
 router.get("/meetings/search" , auth, async(req, res)=>{
     const date = req.query.date;
     const searchTerm  = req.query.desc;
@@ -47,6 +50,7 @@ router.get("/meetings/search" , auth, async(req, res)=>{
     }
 });
 
+//Search for meeting by ID
 router.get("/meetings/:id",auth ,async (req, res)=>{
     const _id = req.params.id;
     try{
@@ -62,7 +66,7 @@ router.get("/meetings/:id",auth ,async (req, res)=>{
 }); 
 
 
-
+//Post New Meeting
 router.post("/meetings" ,auth, async (req, res)=>{
     const meeting = new Meeting({...req.body, creator:req.user._id});
     console.log(req.body);
@@ -72,12 +76,13 @@ router.post("/meetings" ,auth, async (req, res)=>{
        await meeting.save();
        res.send(meeting);
     }catch(error){
-        console.log("here");
+        
         res.statusCode = 400;
         res.send(error.message);
     }
 });
 
+//Excuse Member from meeting
 router.patch("/meetings/removeUser/:id",auth ,async(req, res)=>{
     const removeEmail = req.user.email;
     console.log(removeEmail);
@@ -95,17 +100,25 @@ router.patch("/meetings/removeUser/:id",auth ,async(req, res)=>{
         newMeetingArray.forEach(email=>{
             meeting.emails.push(email);
         });
-        console.log(newMeetingArray);
-        await meeting.save();
-        res.json(meeting)
+        if(meeting.emails.length === 0){
+            await Meeting.deleteOne({_id:req.params.id});
+            res.send()
+        }
+        else{
+            await meeting.save();
+            res.json(meeting)
+        }
+        
     }catch(error){
         res.statusCode = 400;
         res.send(error.message);
     }
 });
 
-router.patch("/meetings/addUser/:id/:email", auth, async(req, res)=>{
-    const addEmail = req.params.email;
+
+//Add Member to meeting
+router.patch("/meetings/addUser/:id", auth, async(req, res)=>{
+    const addEmail = req.body.body.email;
     console.log(addEmail);
     try{
         const meeting = await Meeting.findOne({_id:req.params.id});
@@ -123,6 +136,7 @@ router.patch("/meetings/addUser/:id/:email", auth, async(req, res)=>{
     }
 })
 
+//Update meeting by id
 router.patch("/meetings/:id",auth, async (req, res)=>{
     const allowedUpdates = ['description', 'startHour' , 'startMin' , 'endHour', 'endMin' , 'dateOfMeeting' , 'emails'];
     const updates = Object.keys(req.body);
@@ -160,6 +174,8 @@ router.patch("/meetings/:id",auth, async (req, res)=>{
     }
 });
 
+
+//Delete a meeting
 router.delete("/meetings/:id",auth, async(req, res)=>{
     try{
         const meeting = await Meeting.findOneAndDelete({_id:req.params.id , creator:req.user._id});
@@ -172,6 +188,7 @@ router.delete("/meetings/:id",auth, async(req, res)=>{
         res.send(error.message);
     }
 });
+
 module.exports = router;
 
 

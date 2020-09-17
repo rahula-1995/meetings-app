@@ -1,11 +1,15 @@
 const express = require("express");
 const router = new express.Router();
 const User = require("../models/user");
+const Meeting = require("../models/meeting")
 const auth = require("../middleware/auth");
+const multer = require("multer");
+const sharp = require("sharp");
+const bcrypt = require("bcryptjs");
 
 //Get Profile
 router.get("/users/me" ,auth,  async (req, res)=>{
-    res.send({user:req.user.getPublicProfile()});
+    res.send({user:req.user.getPublicProfile(), meetings:req.meetings});
 })
 
 //Get email
@@ -71,7 +75,6 @@ router.post("/users/logoutAll" , auth, async (req, res)=>{
 
 //Update user
 router.patch("/users/me" ,auth, async(req, res)=>{
-
     const _id  = req.user._id;
   //  ObjectId("5e24b318e791af44ea25e1a4")
     const updates = Object.keys(req.body);
@@ -101,6 +104,58 @@ router.patch("/users/me" ,auth, async(req, res)=>{
 
 });
 
+//update email
+router.patch("/users/me/updateEmail", auth ,async (req, res)=>{
+    const newEmail = req.body.body.email;
+    const oldEmail = req.user.email;
+    
+    try{
+        const meetings = await Meeting.find({emails:req.user.email})
+        meetings.forEach(meeting=>{
+            let newEmailsArray = [];
+            meeting.emails.forEach(email=>{
+                if(email === oldEmail){
+                    newEmailsArray.push(newEmail)
+                }else{
+                    newEmailsArray.push(email)
+                }
+            })
+            meeting.emails = []
+            meeting.emails = newEmailsArray;
+            meeting.save();
+        })
+        req.user.email = newEmail;
+        await req.user.save();
+        res.send();
+    }catch(error){
+        res.status(400);
+        res.send(error);
+    }
+
+})
+
+//update password
+router.patch("/users/me/password" , auth, async(req, res)=>{
+    const currentPassword = req.body.body.currentPassword;
+    const newPassword = req.body.body.newPassword;
+    try{
+        const match = await bcrypt.compare(currentPassword, req.user.password);
+        if(!match){
+            throw new Error("Wrong Password");
+        }
+        
+        req.user.password = newPassword;
+        
+        await req.user.save();
+        res.send();
+    }catch(error){
+        res.status(401);
+        res.send(error);
+    }
+
+});
+
+
 
 //Delete User
 router.delete("/users/me" ,auth,  async (req, res)=>{
@@ -110,6 +165,66 @@ router.delete("/users/me" ,auth,  async (req, res)=>{
             return res.status(404).send();
         }
         res.send(user);
+    }catch(error){
+        res.statusCode = 400;
+        res.send(error.message);
+    }
+});
+
+const upload  = multer({
+    limits:{
+        fileSize:2000000
+    },
+    fileFilter(req, file, callback){
+        if(!file.originalname.match(/\.(png|jpg|jpeg)$/)){
+            return callback(new Error("File extension must be .jpg, .jpeg or .png"));
+        }
+        callback(undefined, true);
+    }
+})
+
+
+router.post("/users/me/avatar" ,auth, upload.single('avatar'), async (req, res)=>{
+    //req.user.avatar = req.file.buffer;
+    const buffer  = await sharp(req.file.buffer).resize({width:200, height:200}).png().toBuffer();
+    const profileBuffer = await sharp(req.file.buffer).resize({width:40, height:40}).png().toBuffer();
+    req.user.avatar = buffer;
+    req.user.profileImage = profileBuffer;
+    await req.user.save();
+    res.send();
+},(error, req, res, next)=>{
+    res.status(400).send({error:error.message});
+});
+
+router.delete("/users/me/avatar", auth, async(req, res)=>{
+    req.user.avatar = undefined;
+    await req.user.save();
+    res.send();
+});
+
+
+router.get("/users/:id/avatar", async(req, res)=>{
+    try{
+        const user = await User.findById(req.params.id);
+        if(!user || !user.avatar){
+            throw new Error("Not Found");
+        }
+        res.set('Content-Type', 'image/png');
+        res.send(user.avatar);
+    }catch(error){
+        res.statusCode = 400;
+        res.send(error.message);
+    }
+})
+
+router.get("/users/:id/profile",  async(req, res)=>{
+    try{
+        const user = await User.findById(req.params.id);
+        if(!user || !user.profileImage){
+            throw new Error("Not Found");
+        }
+        res.set('Content-Type', 'image/png');
+        res.send(user.profileImage);
     }catch(error){
         res.statusCode = 400;
         res.send(error.message);

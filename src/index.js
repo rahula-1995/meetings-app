@@ -9,6 +9,26 @@ const meetingRouter = require("./routers/meeting");
 const auth = require("./middleware/auth");
 const jwt = require("jsonwebtoken");
 
+// const multer = require("multer");
+// const upload  = multer({
+//     dest:'images',
+//     limits:{
+//         fileSize: 2000000
+//     },
+//     fileFilter(req, file ,callback){
+//         if(!file.originalname.match(/\.(doc|docx)$/)){
+//             return callback(new Error("Please upload a word doc"))
+//         }
+//         callback(undefined, true)
+//     }
+// })
+
+// app.post('/upload', upload.single('upload'),  (req, res)=>{
+//     res.send();
+// })
+
+
+
 app.use(cors());
 
 const PORT = process.env.PORT
@@ -34,23 +54,6 @@ app.get("/", async(req, res)=>{
     res.render("login")
 })
 
-app.get("/private" , async(req, res)=>{
-    const authorizationHeader = req.get('Authorization');
-    
-    if(authorizationHeader){
-        const token = authorizationHeader.replace('Bearer ' , '');
-        const decoded = await jwt.verify(token , process.env.JWT_SECRET);
-        const user = await User.findOne({_id: decoded._id , 'tokens.token' : token});
-        if(!user){
-            res.redirect("/");
-        }
-        res.render('private', {user:user});
-    }
-    else{
-        res.json({error:"Not Authorized"});
-    }
-
-});
 app.use(userRouter);
 app.use(meetingRouter);
 

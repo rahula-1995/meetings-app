@@ -3,6 +3,7 @@ const validator = require("validator");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken")
 
+
 const userSchema = new mongoose.Schema({
     name:{
         type:String,
@@ -45,7 +46,13 @@ const userSchema = new mongoose.Schema({
     },
     tokens:[{
         token:{type:String , required:true}
-    }]
+    }],
+    avatar:{
+        type: Buffer
+    },
+    profileImage:{
+        type:Buffer
+    }
 },{timestamps:true})
 
 
@@ -75,13 +82,13 @@ userSchema.methods.generateAuthToken = async function(){
     user.tokens  = user.tokens.concat({token});
     await user.save();
     return token;
-
 }
 
 userSchema.methods.getPublicProfile = function(){
     const user = this;
     const userObject =  user.toObject();
     delete userObject.password;
+    
     return userObject;
 }
 
