@@ -184,17 +184,24 @@ const upload  = multer({
 })
 
 
-router.post("/users/me/avatar" ,auth, upload.single('avatar'), async (req, res)=>{
+//update profile image
+router.post("/users/me/profileNavbar" ,auth, upload.single('avatar'), async (req, res)=>{
     //req.user.avatar = req.file.buffer;
-    const buffer  = await sharp(req.file.buffer).resize({width:200, height:200}).png().toBuffer();
     const profileBuffer = await sharp(req.file.buffer).resize({width:40, height:40}).png().toBuffer();
-    req.user.avatar = buffer;
     req.user.profileImage = profileBuffer;
     await req.user.save();
     res.send();
 },(error, req, res, next)=>{
     res.status(400).send({error:error.message});
 });
+
+//update profile picture
+router.post("/users/me/profilePicture", auth, async (req, res)=>{
+    req.user.avatar = req.body.body.url;
+    await req.user.save();
+    res.send()
+});
+
 
 router.delete("/users/me/avatar", auth, async(req, res)=>{
     req.user.avatar = undefined;

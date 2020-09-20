@@ -9,7 +9,7 @@ router.get("/meetings" ,auth,  async (req, res)=>{
 
     try{
        const userId = req.user._id;
-       const meetings = await Meeting.find({emails:req.user.email, creator:userId});
+       const meetings = await Meeting.find({emails:req.user.email});
        res.send(meetings);
     }catch(error){
         res.statusCode = 500;

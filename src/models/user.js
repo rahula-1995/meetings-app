@@ -48,7 +48,7 @@ const userSchema = new mongoose.Schema({
         token:{type:String , required:true}
     }],
     avatar:{
-        type: Buffer
+        type: String
     },
     profileImage:{
         type:Buffer
